@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         String   // INSTRUCTOR or LEARNER
+  phoneNumber  String?
+  createdAt    DateTime @default(now())
+  isActive     Boolean  @default(true)
+
+  // Instructor: meine Schüler
+  students     InstructorLearner[] @relation("InstructorStudents")
+  // Learner: meine Fahrlehrer
+  instructors  InstructorLearner[] @relation("LearnerInstructors")
+
+  // Instructor: meine Zeitfenster
+  timeSlots    TimeSlot[]
+  // Learner: meine Buchungen
+  bookings     Booking[]
+  // Instructor: meine Einladungen
+  invitations  Invitation[]
+}
+
+model InstructorLearner {
+  instructorId String
+  learnerId    String
+  assignedAt   DateTime @default(now())
+
+  instructor   User @relation("InstructorStudents", fields: [instructorId], references: [id])
+  learner      User @relation("LearnerInstructors", fields: [learnerId], references: [id])
+
+  @@id([instructorId, learnerId])
+}
+
+model TimeSlot {
+  id           String   @id @default(uuid())
+  instructorId String
+  startTime    DateTime
+  endTime      DateTime
+  isAvailable  Boolean  @default(true)
+  slotType     String   @default("LESSON") // LESSON, BLOCKED, BREAK
+  createdAt    DateTime @default(now())
+
+  instructor   User     @relation(fields: [instructorId], references: [id])
+  booking      Booking?
+}
+
+model Booking {
+  id              String    @id @default(uuid())
+  learnerId       String
+  timeSlotId      String    @unique
+  status          String    @default("PENDING") // PENDING, CONFIRMED, CANCELLED, COMPLETED
+  bookedAt        DateTime  @default(now())
+  cancelledAt     DateTime?
+  cancellationFee Boolean   @default(false)
+  notes           String?
+
+  learner         User     @relation(fields: [learnerId], references: [id])
+  timeSlot        TimeSlot @relation(fields: [timeSlotId], references: [id])
+}
+
+model Invitation {
+  id           String    @id @default(uuid())
+  instructorId String
+  email        String
+  token        String    @unique
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  isUsed       Boolean   @default(false)
+
+  instructor   User @relation(fields: [instructorId], references: [id])
+}
