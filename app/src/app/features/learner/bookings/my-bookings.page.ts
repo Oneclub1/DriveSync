@@ -22,9 +22,6 @@ import { Booking } from '../../../core/models/booking.model';
   template: `
     <ion-header>
       <ion-toolbar color="primary">
-        <ion-buttons slot="start">
-          <ion-back-button defaultHref="/learner/dashboard"></ion-back-button>
-        </ion-buttons>
         <ion-title>Meine Buchungen</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -108,6 +105,9 @@ export class MyBookingsPage implements OnInit {
   }
 
   cancel(id: string) {
+    if (!confirm('Buchung wirklich stornieren? Bei zu später Stornierung wird eine Gebühr fällig.')) {
+      return;
+    }
     this.cancelMessage = '';
 
     this.bookingService.cancel(id).subscribe({

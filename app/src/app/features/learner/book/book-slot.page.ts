@@ -24,9 +24,6 @@ import { Router } from '@angular/router';
   template: `
     <ion-header>
       <ion-toolbar color="primary">
-        <ion-buttons slot="start">
-          <ion-back-button defaultHref="/learner/dashboard"></ion-back-button>
-        </ion-buttons>
         <ion-title>Fahrstunde buchen</ion-title>
       </ion-toolbar>
     </ion-header>

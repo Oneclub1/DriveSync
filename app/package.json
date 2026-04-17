@@ -18,6 +18,8 @@
     "@angular/platform-browser": "^18.2.0",
     "@angular/platform-browser-dynamic": "^18.2.0",
     "@angular/router": "^18.2.0",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/preferences": "^8.0.1",
     "@ionic/angular": "^8.8.2",
     "@ionic/angular-toolkit": "^12.3.0",
     "ionicons": "^8.0.13",

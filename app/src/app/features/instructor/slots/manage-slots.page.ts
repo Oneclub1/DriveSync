@@ -29,9 +29,6 @@ import { TimeSlot } from '../../../core/models/timeslot.model';
   template: `
     <ion-header>
       <ion-toolbar color="primary">
-        <ion-buttons slot="start">
-          <ion-back-button defaultHref="/instructor/dashboard"></ion-back-button>
-        </ion-buttons>
         <ion-title>Zeitfenster</ion-title>
       </ion-toolbar>
     </ion-header>

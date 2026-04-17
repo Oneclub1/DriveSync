@@ -2,75 +2,73 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
-  IonContent, IonHeader, IonToolbar, IonTitle, IonButton,
-  IonButtons, IonCard, IonCardContent, IonCardHeader,
-  IonCardTitle, IonList, IonItem, IonLabel, IonBadge,
-  IonIcon, IonGrid, IonRow, IonCol,
+  IonContent, IonHeader, IonToolbar, IonTitle, IonCard, IonCardContent,
+  IonCardHeader, IonCardTitle, IonItem, IonLabel, IonBadge, IonIcon,
+  IonGrid, IonRow, IonCol,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { calendarOutline, bookOutline, logOutOutline, timeOutline } from 'ionicons/icons';
+import {
+  calendarOutline, bookOutline, timeOutline, statsChartOutline,
+  alertCircleOutline,
+} from 'ionicons/icons';
 import { AuthService } from '../../../core/services/auth.service';
 import { BookingService } from '../../../core/services/booking.service';
+import { StatsService } from '../../../core/services/stats.service';
 import { Booking } from '../../../core/models/booking.model';
+import { LearnerStats } from '../../../core/models/stats.model';
 
 @Component({
   selector: 'app-learner-dashboard',
   standalone: true,
   imports: [
     CommonModule, DatePipe, RouterLink,
-    IonContent, IonHeader, IonToolbar, IonTitle, IonButton,
-    IonButtons, IonCard, IonCardContent, IonCardHeader,
-    IonCardTitle, IonList, IonItem, IonLabel, IonBadge,
-    IonIcon, IonGrid, IonRow, IonCol,
+    IonContent, IonHeader, IonToolbar, IonTitle, IonCard, IonCardContent,
+    IonCardHeader, IonCardTitle, IonItem, IonLabel, IonBadge, IonIcon,
+    IonGrid, IonRow, IonCol,
   ],
   template: `
     <ion-header>
       <ion-toolbar color="primary">
         <ion-title>DriveSync</ion-title>
-        <ion-buttons slot="end">
-          <ion-button (click)="logout()">
-            <ion-icon name="log-out-outline"></ion-icon>
-          </ion-button>
-        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content class="ion-padding">
       <h2>Hallo, {{ auth.currentUser?.firstName }}!</h2>
 
-      <ion-grid>
-        <ion-row>
-          <ion-col size="12" size-md="6">
-            <ion-card routerLink="/learner/book">
-              <ion-card-header>
-                <ion-card-title>
-                  <ion-icon name="calendar-outline"></ion-icon>
-                  Fahrstunde buchen
-                </ion-card-title>
-              </ion-card-header>
-              <ion-card-content>
-                <p>Verfügbare Zeitfenster ansehen und buchen</p>
-                <ion-button fill="clear" size="small">Jetzt buchen</ion-button>
-              </ion-card-content>
-            </ion-card>
-          </ion-col>
+      @if (stats) {
+        <ion-grid class="stats-grid">
+          <ion-row>
+            <ion-col size="6">
+              <ion-card class="stat-card">
+                <ion-card-content>
+                  <div class="stat-value">{{ stats.upcomingBookings }}</div>
+                  <div class="stat-label">Anstehend</div>
+                </ion-card-content>
+              </ion-card>
+            </ion-col>
+            <ion-col size="6">
+              <ion-card class="stat-card">
+                <ion-card-content>
+                  <div class="stat-value">{{ stats.completedTotal }}</div>
+                  <div class="stat-label">Abgeschlossen</div>
+                </ion-card-content>
+              </ion-card>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
 
-          <ion-col size="12" size-md="6">
-            <ion-card routerLink="/learner/bookings">
-              <ion-card-header>
-                <ion-card-title>
-                  <ion-icon name="book-outline"></ion-icon>
-                  Meine Buchungen
-                </ion-card-title>
-              </ion-card-header>
-              <ion-card-content>
-                <p>{{ activeBookings }} aktive Buchungen</p>
-                <ion-button fill="clear" size="small">Alle anzeigen</ion-button>
-              </ion-card-content>
-            </ion-card>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+        @if (stats.cancellationFees > 0) {
+          <ion-card color="warning">
+            <ion-item lines="none" color="warning">
+              <ion-icon name="alert-circle-outline" slot="start"></ion-icon>
+              <ion-label>
+                <h3>{{ stats.cancellationFees }}× Stornierungsgebühr offen</h3>
+              </ion-label>
+            </ion-item>
+          </ion-card>
+        }
+      }
 
       @if (nextBooking) {
         <h3>Nächste Fahrstunde</h3>
@@ -92,31 +90,42 @@ import { Booking } from '../../../core/models/booking.model';
       }
     </ion-content>
   `,
+  styles: [`
+    .stats-grid { padding: 0; }
+    .stat-card { margin: 4px; text-align: center; }
+    .stat-value { font-size: 32px; font-weight: bold; color: var(--ion-color-primary); }
+    .stat-label { font-size: 12px; color: var(--ion-color-medium); text-transform: uppercase; }
+  `],
 })
 export class LearnerDashboardPage implements OnInit {
   nextBooking: Booking | null = null;
-  activeBookings = 0;
+  stats: LearnerStats | null = null;
 
   constructor(
     public auth: AuthService,
     private bookingService: BookingService,
+    private statsService: StatsService,
   ) {
-    addIcons({ calendarOutline, bookOutline, logOutOutline, timeOutline });
-  }
-
-  ngOnInit() {
-    this.bookingService.getMyBookings().subscribe({
-      next: (bookings) => {
-        const active = bookings.filter(
-          (b) => b.status !== 'CANCELLED' && new Date(b.timeSlot.startTime) > new Date(),
-        );
-        this.activeBookings = active.length;
-        this.nextBooking = active.length > 0 ? active[active.length - 1] : null;
-      },
+    addIcons({
+      calendarOutline, bookOutline, timeOutline, statsChartOutline, alertCircleOutline,
     });
   }
 
-  logout() {
-    this.auth.logout();
+  ngOnInit() {
+    this.statsService.getStats<LearnerStats>().subscribe({
+      next: (s) => (this.stats = s),
+    });
+
+    this.bookingService.getMyBookings().subscribe({
+      next: (bookings) => {
+        const active = bookings
+          .filter((b) => b.status !== 'CANCELLED' && new Date(b.timeSlot.startTime) > new Date())
+          .sort(
+            (a, b) =>
+              new Date(a.timeSlot.startTime).getTime() - new Date(b.timeSlot.startTime).getTime(),
+          );
+        this.nextBooking = active.length > 0 ? active[0] : null;
+      },
+    });
   }
 }

@@ -23,9 +23,6 @@ import { Booking } from '../../../core/models/booking.model';
   template: `
     <ion-header>
       <ion-toolbar color="primary">
-        <ion-buttons slot="start">
-          <ion-back-button defaultHref="/instructor/dashboard"></ion-back-button>
-        </ion-buttons>
         <ion-title>Buchungen</ion-title>
       </ion-toolbar>
     </ion-header>

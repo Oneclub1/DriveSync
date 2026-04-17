@@ -16,6 +16,8 @@ export const routes: Routes = [
   {
     path: 'instructor',
     canActivate: [authGuard, roleGuard('INSTRUCTOR')],
+    loadComponent: () =>
+      import('./features/instructor/instructor-tabs.page').then((m) => m.InstructorTabsPage),
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       {
@@ -44,11 +46,23 @@ export const routes: Routes = [
             (m) => m.StudentListPage,
           ),
       },
+      {
+        path: 'notifications',
+        loadComponent: () =>
+          import('./features/notifications/notifications.page').then((m) => m.NotificationsPage),
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/profile/profile.page').then((m) => m.ProfilePage),
+      },
     ],
   },
   {
     path: 'learner',
     canActivate: [authGuard, roleGuard('LEARNER')],
+    loadComponent: () =>
+      import('./features/learner/learner-tabs.page').then((m) => m.LearnerTabsPage),
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       {
@@ -67,6 +81,16 @@ export const routes: Routes = [
         path: 'bookings',
         loadComponent: () =>
           import('./features/learner/bookings/my-bookings.page').then((m) => m.MyBookingsPage),
+      },
+      {
+        path: 'notifications',
+        loadComponent: () =>
+          import('./features/notifications/notifications.page').then((m) => m.NotificationsPage),
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/profile/profile.page').then((m) => m.ProfilePage),
       },
     ],
   },

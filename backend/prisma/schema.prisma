@@ -18,17 +18,21 @@ model User {
   createdAt    DateTime @default(now())
   isActive     Boolean  @default(true)
 
-  // Instructor: meine Schüler
-  students     InstructorLearner[] @relation("InstructorStudents")
-  // Learner: meine Fahrlehrer
-  instructors  InstructorLearner[] @relation("LearnerInstructors")
+  // Instructor-spezifische Settings (override global config)
+  cancellationDeadlineHours Int?
+  maxBookingsPerWeek        Int?
+  reminderHoursBefore       Int?    @default(24)
+  emailNotifications        Boolean @default(true)
 
-  // Instructor: meine Zeitfenster
+  // Push subscription (Web Push)
+  pushSubscription String?
+
+  students     InstructorLearner[] @relation("InstructorStudents")
+  instructors  InstructorLearner[] @relation("LearnerInstructors")
   timeSlots    TimeSlot[]
-  // Learner: meine Buchungen
   bookings     Booking[]
-  // Instructor: meine Einladungen
   invitations  Invitation[]
+  notifications Notification[]
 }
 
 model InstructorLearner {
@@ -48,7 +52,7 @@ model TimeSlot {
   startTime    DateTime
   endTime      DateTime
   isAvailable  Boolean  @default(true)
-  slotType     String   @default("LESSON") // LESSON, BLOCKED, BREAK
+  slotType     String   @default("LESSON")
   createdAt    DateTime @default(now())
 
   instructor   User     @relation(fields: [instructorId], references: [id])
@@ -59,11 +63,19 @@ model Booking {
   id              String    @id @default(uuid())
   learnerId       String
   timeSlotId      String    @unique
-  status          String    @default("PENDING") // PENDING, CONFIRMED, CANCELLED, COMPLETED
+  status          String    @default("PENDING")
   bookedAt        DateTime  @default(now())
   cancelledAt     DateTime?
   cancellationFee Boolean   @default(false)
   notes           String?
+
+  // Reminder-Tracking
+  reminderSentAt  DateTime?
+
+  // Zahlung
+  paymentStatus   String?   // null, "PENDING", "PAID", "FAILED"
+  paymentAmount   Float?    // in EUR
+  paymentRef      String?   // Stripe Charge/Intent ID
 
   learner         User     @relation(fields: [learnerId], references: [id])
   timeSlot        TimeSlot @relation(fields: [timeSlotId], references: [id])
@@ -80,4 +92,21 @@ model Invitation {
   isUsed       Boolean   @default(false)
 
   instructor   User @relation(fields: [instructorId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // BOOKING_CREATED, BOOKING_CANCELLED, BOOKING_CONFIRMED, REMINDER, etc.
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Optional: Verknüpfung zu Buchung
+  bookingId String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
 }

@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { config } from '../config';
 import { AppError } from '../middleware/error';
+import {
+  notifyBookingCreated, notifyBookingCancelled, notifyBookingConfirmed,
+} from './notification.service';
 
 const prisma = new PrismaClient();
 
@@ -40,9 +43,15 @@ export async function bookSlot(learnerId: string, timeSlotId: string, notes?: st
     throw new AppError(403, 'Du bist diesem Fahrlehrer nicht zugeordnet');
   }
 
-  // Prüfe Wochenlimit
+  // Prüfe Wochenlimit (Instructor-Setting hat Vorrang)
+  const instructor = await prisma.user.findUnique({
+    where: { id: slot.instructorId },
+    select: { maxBookingsPerWeek: true },
+  });
+  const maxPerWeek = instructor?.maxBookingsPerWeek ?? config.booking.maxBookingsPerWeek;
+
   const weekStart = new Date(slot.startTime);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Montag
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
   weekStart.setHours(0, 0, 0, 0);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 7);
@@ -57,23 +66,17 @@ export async function bookSlot(learnerId: string, timeSlotId: string, notes?: st
     },
   });
 
-  if (bookingsThisWeek >= config.booking.maxBookingsPerWeek) {
-    throw new AppError(400, `Maximale Buchungen pro Woche erreicht (${config.booking.maxBookingsPerWeek})`);
+  if (bookingsThisWeek >= maxPerWeek) {
+    throw new AppError(400, `Maximale Buchungen pro Woche erreicht (${maxPerWeek})`);
   }
 
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const booking = await tx.booking.create({
-      data: {
-        learnerId,
-        timeSlotId,
-        notes,
-      },
+      data: { learnerId, timeSlotId, notes },
       include: {
         timeSlot: {
           include: {
-            instructor: {
-              select: { id: true, firstName: true, lastName: true },
-            },
+            instructor: { select: { id: true, firstName: true, lastName: true } },
           },
         },
       },
@@ -86,6 +89,11 @@ export async function bookSlot(learnerId: string, timeSlotId: string, notes?: st
 
     return booking;
   });
+
+  // Async Notification (nicht warten)
+  notifyBookingCreated(created.id).catch((e) => console.error('[Notify] Fehler:', e));
+
+  return created;
 }
 
 export async function cancelBooking(learnerId: string, bookingId: string) {
@@ -110,8 +118,16 @@ export async function cancelBooking(learnerId: string, bookingId: string) {
     throw new AppError(400, 'Abgeschlossene Buchungen können nicht storniert werden');
   }
 
+  // Per-Instructor Stornierungsfrist hat Vorrang vor Global-Setting
+  const instructor = await prisma.user.findUnique({
+    where: { id: booking.timeSlot.instructorId },
+    select: { cancellationDeadlineHours: true },
+  });
+  const deadlineHours =
+    instructor?.cancellationDeadlineHours ?? config.booking.cancellationDeadlineHours;
+
   const hoursUntilSlot = (booking.timeSlot.startTime.getTime() - Date.now()) / (1000 * 60 * 60);
-  const isFree = hoursUntilSlot >= config.booking.cancellationDeadlineHours;
+  const isFree = hoursUntilSlot >= deadlineHours;
 
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.booking.update({
@@ -131,12 +147,15 @@ export async function cancelBooking(learnerId: string, bookingId: string) {
     return result;
   });
 
+  // Async Notification an Instructor
+  notifyBookingCancelled(bookingId, !isFree).catch((e) => console.error('[Notify] Fehler:', e));
+
   return {
     booking: updated,
     isFree,
     message: isFree
       ? 'Buchung erfolgreich storniert. Keine Kosten.'
-      : `Stornierung zu spät (weniger als ${config.booking.cancellationDeadlineHours}h vorher). Die Fahrstunde muss trotzdem bezahlt werden.`,
+      : `Stornierung zu spät (weniger als ${deadlineHours}h vorher). Die Fahrstunde muss trotzdem bezahlt werden.`,
   };
 }
 
@@ -189,7 +208,7 @@ export async function confirmBooking(instructorId: string, bookingId: string) {
     throw new AppError(400, 'Nur ausstehende Buchungen können bestätigt werden');
   }
 
-  return prisma.booking.update({
+  const confirmed = await prisma.booking.update({
     where: { id: bookingId },
     data: { status: 'CONFIRMED' },
     include: {
@@ -199,4 +218,7 @@ export async function confirmBooking(instructorId: string, bookingId: string) {
       timeSlot: true,
     },
   });
+
+  notifyBookingConfirmed(bookingId).catch((e) => console.error('[Notify] Fehler:', e));
+  return confirmed;
 }

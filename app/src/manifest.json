@@ -1,0 +1,16 @@
+{
+  "name": "DriveSync",
+  "short_name": "DriveSync",
+  "description": "Fahrstunden einfach buchen",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
