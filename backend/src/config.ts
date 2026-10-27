@@ -1,10 +1,16 @@
+import { randomBytes } from 'crypto';
 import dotenv from 'dotenv';
 dotenv.config();
+
+// Ohne JWT_SECRET kein Start in Produktion; lokal ein zufälliges Secret pro Prozess
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET muss in Produktion gesetzt sein');
+}
 
 export const config = {
   port: parseInt(process.env.PORT || '3000'),
   jwt: {
-    secret: process.env.JWT_SECRET || 'drivesync-dev-secret-change-in-production-min32chars!',
+    secret: process.env.JWT_SECRET || randomBytes(32).toString('hex'),
     expirationHours: parseInt(process.env.JWT_EXPIRATION_HOURS || '24'),
   },
   booking: {
